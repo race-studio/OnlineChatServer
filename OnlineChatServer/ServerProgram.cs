@@ -56,4 +56,15 @@ namespace OnlineChatServer
             }
         }
     }
+
+    class Client
+    {
+        Socket client;
+        string clientName;
+        Client(Socket client, string name)
+        {
+            this.client = client;
+            this.clientName = name;
+        }
+    }
 }
