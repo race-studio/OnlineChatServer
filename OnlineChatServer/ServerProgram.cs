@@ -14,16 +14,26 @@ namespace OnlineChatServer
     public class Client
     {
         public TcpClient client;
-        public Client(TcpClient tcpClient)
+        public Server server;
+        public Client(Server servers,TcpClient tcpClient)
         {
+            server = servers;
             client = tcpClient;
         }
+
+
         public void Process()
         {
-            NetworkStream stream = null;
+           
+            NetworkStream stream =  client.GetStream();
+
+            server.streamList.Add(stream);
+            //server.clientArray[0] = stream;
             try
             {
-                stream = client.GetStream();
+
+                
+               
                 byte[] data = new byte[64]; // буфер для получаемых данных
                 while (true)
                 {
@@ -32,18 +42,36 @@ namespace OnlineChatServer
                     int bytes = 0;
                     do
                     {
+                       
                         bytes = stream.Read(data, 0, data.Length);
                         builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+                    
                     }
+
                     while (stream.DataAvailable);
 
                     string message = builder.ToString();
+                    string messageExit = message.Substring(message.IndexOf(':') + 1);
+                    if (messageExit.Equals("exit") == true)
+                    {
+                        stream.Close();
+                        client.Close();
+                    }
+                    if (message.Equals("") == false) {
+                 
+                        Console.WriteLine(message);
+                        
+                    }
+                    else {
+                        continue;
+                    }
 
-                    Console.WriteLine(message);
-                    // отправляем обратно сообщение в верхнем регистре
-                    message = message.Substring(message.IndexOf(':') + 1).Trim().ToUpper();
+                   
                     data = Encoding.Unicode.GetBytes(message);
-                    stream.Write(data, 0, data.Length);
+
+                    foreach (NetworkStream i in server.streamList) { 
+                    i.Write(data, 0, data.Length);
+                    }
                 }
             }
             catch (Exception ex)
@@ -64,8 +92,16 @@ namespace OnlineChatServer
          }
         
     }
+
+    public class Server
+    {
+     public  List<NetworkStream> streamList = new List<NetworkStream>();
+     
+
+    }
     class ServerProgram
     {
+       
         static TcpListener listener;
         static void Main(string[] args)
         {
@@ -73,6 +109,7 @@ namespace OnlineChatServer
             string ip = "127.0.0.1";
             try
             {
+                Server server = new Server();
                 listener = new TcpListener(IPAddress.Parse(ip), port);
                 listener.Start();
                 Console.WriteLine("Ожидание подключений...");
@@ -80,7 +117,8 @@ namespace OnlineChatServer
                 while (true)
                 {
                     TcpClient client = listener.AcceptTcpClient();
-                    Client clientObject = new Client(client);
+                    
+                    Client clientObject = new Client(server ,client);
 
                     // создаем новый поток для обслуживания нового клиента
                     Thread clientThread = new Thread(new ThreadStart(clientObject.Process));
@@ -99,23 +137,5 @@ namespace OnlineChatServer
             }
             
         }
-        /*do
-        {
-            bytes = handler.Receive(data);
-            builder.Append(Encoding.Unicode.GetString(data, 0, bytes));
-        }
-        while (handler.Available > 0);
-
-        Console.WriteLine(DateTime.Now.ToShortTimeString() + ": " + builder.ToString());
-
-        // отправляем ответ
-        string message = builder.ToString() + "B";
-        data = Encoding.Unicode.GetBytes(message);
-        handler.Send(data);
-        // закрываем сокет
-        handler.Shutdown(SocketShutdown.Both);
-        handler.Close();
-
-        Console.WriteLine("Hello World!");*/
     }
 }
